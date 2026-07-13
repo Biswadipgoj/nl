@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
+import { createClient } from '@/utils/supabase/server'
 
 // ── URL normalizer ──────────────────────────────────────────────────────────
 // Accepts bare domains like "biswadip.in", "www.google.com", or full URLs.
@@ -71,8 +72,13 @@ export async function POST(req: Request) {
       hashedPassword = await bcrypt.hash(parsed.password, 10)
     }
 
+    // Get current user if any
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
     const newLink = await prisma.link.create({
       data: {
+        userId: user?.id || null,
         originalUrl: normalizedUrl,
         shortCode,
         customAlias: parsed.customAlias || null,
@@ -85,7 +91,7 @@ export async function POST(req: Request) {
     return NextResponse.json(newLink, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: (error as any).errors[0]?.message || 'Validation error' }, { status: 400 })
+      return NextResponse.json({ error: error.issues[0]?.message || 'Validation error' }, { status: 400 })
     }
     console.error('Error creating link:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -94,7 +100,15 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const links = await prisma.link.findMany({
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
     })
     const safeLinks = links.map(link => {
