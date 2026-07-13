@@ -1,31 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import ShortenForm from '@/components/ShortenForm'
 import Link from 'next/link'
-
-// Animated counter hook
-function useCounter(end: number, duration = 1800, started = false) {
-  const [val, setVal] = useState(0)
-  useEffect(() => {
-    if (!started) return
-    let start = 0
-    const step = end / (duration / 16)
-    const timer = setInterval(() => {
-      start += step
-      if (start >= end) { setVal(end); clearInterval(timer) }
-      else setVal(Math.floor(start))
-    }, 16)
-    return () => clearInterval(timer)
-  }, [end, duration, started])
-  return val
-}
-
-const stats = [
-  { value: 2400000, label: 'Links Shortened', suffix: '+' },
-  { value: 99.9, label: 'Uptime SLA', suffix: '%', decimals: 1 },
-  { value: 12, label: 'ms Avg Redirect', suffix: '' },
-]
 
 const features = [
   {
@@ -35,8 +12,8 @@ const features = [
         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
       </svg>
     ),
-    title: 'Real-time Analytics',
-    description: 'Click-through rates, geographic data, referral sources — all tracked in real time.',
+    title: 'Click Analytics',
+    description: 'See how many times each link was clicked and when it was last visited — right from your dashboard.',
   },
   {
     iconClass: 'feature-icon-violet',
@@ -45,8 +22,8 @@ const features = [
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
       </svg>
     ),
-    title: 'Secure by Default',
-    description: 'Password protection, link expiry, and burn-after-reading — all built in.',
+    title: 'Privacy Controls',
+    description: 'Add a password, set an expiry date, or make a link self-destruct after the first click.',
   },
   {
     iconClass: 'feature-icon-emerald',
@@ -57,58 +34,34 @@ const features = [
       </svg>
     ),
     title: 'Custom Aliases',
-    description: 'Branded short links like nano.ly/product-launch instead of random codes.',
+    description: 'Use a memorable alias like /launch or /portfolio instead of a random code.',
   },
 ]
 
-function formatStat(val: number, suffix: string, decimals = 0) {
-  if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M' + suffix
-  if (val >= 1_000) return (val / 1_000).toFixed(0) + 'K' + suffix
-  return decimals > 0 ? val.toFixed(decimals) + suffix : val + suffix
-}
-
 export default function Home() {
-  const statsRef = useRef<HTMLDivElement>(null)
-  const [statsVisible, setStatsVisible] = useState(false)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setStatsVisible(true) },
-      { threshold: 0.3 }
-    )
-    if (statsRef.current) observer.observe(statsRef.current)
-    return () => observer.disconnect()
-  }, [])
-
-  const count0 = useCounter(stats[0].value, 2000, statsVisible)
-  const count1 = useCounter(stats[1].value * 10, 1600, statsVisible) // ×10 for decimals
-  const count2 = useCounter(stats[2].value, 1200, statsVisible)
-
   return (
     <section className="hero-section">
-
-
       <div className="hero-content">
 
         {/* Badge */}
         <div className="hero-badge">
           <span className="hero-badge-inner">
             <span className="hero-badge-dot" />
-            APEX
+            FREE
           </span>
-          <span className="hero-badge-text">Enterprise Link Intelligence</span>
+          <span className="hero-badge-text">No account needed to get started</span>
         </div>
 
         {/* Headline */}
         <h1 className="hero-title">
-          The last URL shortener<br />
-          <span className="hero-title-gradient">you&apos;ll ever need</span>
+          Shorten any link.<br />
+          <span className="hero-title-gradient">Share it anywhere.</span>
         </h1>
 
         {/* Subheadline */}
         <p className="hero-subtitle">
-          Secure, branded, and actionable short links with sub-20ms redirects. 
-          Built for companies that care about every click.
+          Paste a long URL and get a short, clean link in one click.
+          Add a password, expiry, or QR code — all for free.
         </p>
 
         {/* Shortening form */}
@@ -123,38 +76,6 @@ export default function Home() {
             <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
           </svg>
         </Link>
-
-        {/* Social proof stats */}
-        <div
-          ref={statsRef}
-          style={{
-            display: 'flex', gap: '0px', marginTop: '4rem', width: '100%',
-            maxWidth: '560px', borderRadius: '16px', overflow: 'hidden',
-            border: '1px solid var(--border-faint)',
-            background: 'var(--bg-elevated)',
-          }}
-        >
-          {[
-            { count: formatStat(count0, '+'), label: stats[0].label },
-            { count: count1 / 10 >= 99.9 ? '99.9%' : `${(count1 / 10).toFixed(1)}%`, label: stats[1].label },
-            { count: count2 > 0 ? `${count2}ms` : '—', label: stats[2].label },
-          ].map((s, i) => (
-            <div
-              key={s.label}
-              style={{
-                flex: 1, textAlign: 'center', padding: '1.25rem 1rem',
-                borderRight: i < 2 ? '1px solid var(--border-faint)' : 'none',
-              }}
-            >
-              <div style={{ fontSize: '1.625rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--text-primary)', lineHeight: 1 }}>
-                {s.count}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {s.label}
-              </div>
-            </div>
-          ))}
-        </div>
 
         {/* Feature grid */}
         <div className="features-grid" style={{ marginTop: '5rem' }}>

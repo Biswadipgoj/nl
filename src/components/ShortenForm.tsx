@@ -5,7 +5,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
-const GUEST_LINK_KEY = 'nanolink_guest_created'
+const GUEST_LINK_KEY = 'nanolink_guest_count'
+const GUEST_LIMIT = 5
 
 function getBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, '')
@@ -38,9 +39,8 @@ export default function ShortenForm() {
         const { data: { user } } = await supabase.auth.getUser()
         setIsAuthenticated(!!user)
         if (!user) {
-          // Check if guest already created a link
-          const guestUsed = localStorage.getItem(GUEST_LINK_KEY)
-          if (guestUsed) setGuestLimitReached(true)
+          const guestCount = parseInt(localStorage.getItem(GUEST_LINK_KEY) || '0', 10)
+          if (guestCount >= GUEST_LIMIT) setGuestLimitReached(true)
         }
       } catch {
         setIsAuthenticated(false)
@@ -55,7 +55,7 @@ export default function ShortenForm() {
 
     // Block guest if limit reached
     if (!isAuthenticated && guestLimitReached) {
-      setError('You have used your free guest link. Please sign in to create more.')
+      setError('You have used all 5 free guest links. Sign in to create unlimited links.')
       triggerShake()
       return
     }
@@ -86,10 +86,12 @@ export default function ShortenForm() {
         setShowSettings(false)
         setShowQR(false)
         setError('')
-        // Mark guest as having used their one link
+        // Track guest usage count
         if (!isAuthenticated) {
-          localStorage.setItem(GUEST_LINK_KEY, '1')
-          setGuestLimitReached(true)
+          const prev = parseInt(localStorage.getItem(GUEST_LINK_KEY) || '0', 10)
+          const next = prev + 1
+          localStorage.setItem(GUEST_LINK_KEY, String(next))
+          if (next >= GUEST_LIMIT) setGuestLimitReached(true)
         }
       } else {
         setError(data.error || 'Failed to shorten URL')
@@ -122,29 +124,24 @@ export default function ShortenForm() {
     return (
       <div style={{ width: '100%' }}>
         <div className="form-card" style={{ padding: '2.5rem 2rem', textAlign: 'center' }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', color: '#fb923c' }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', color: 'var(--indigo)' }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
           </div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Guest limit reached</h3>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '1.5rem', maxWidth: '320px', margin: '0 auto 1.5rem' }}>
-            You've used your free guest link. Sign in to create unlimited short links with full analytics and management.
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>You&apos;ve used all 5 guest links</h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.65', margin: '0 auto 1.5rem', maxWidth: '300px' }}>
+            Sign in with Google to create unlimited links, track clicks, and manage everything from your dashboard.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <Link href="/login" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0.875rem', borderRadius: '14px', background: 'var(--text-main)', color: 'var(--bg-base)', fontWeight: 700, fontSize: '0.95rem' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
-              </svg>
-              Sign in to continue — it&apos;s free
-            </Link>
-          </div>
+          <Link href="/login" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0.8rem 1.5rem', borderRadius: '12px', background: 'var(--text-primary)', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>
+            Sign in with Google — it&apos;s free
+          </Link>
         </div>
         <div className="trust-row">
           {[
-            { icon: '🔒', text: 'No spam, just links' },
-            { icon: '⚡', text: 'Free forever plan' },
-            { icon: '🛡️', text: 'OAuth only — no passwords' },
+            { icon: '🔒', text: 'No passwords stored' },
+            { icon: '⚡', text: 'Unlimited links free' },
+            { icon: '🛡️', text: 'Google sign-in only' },
           ].map((t) => (
             <span key={t.text} className="trust-item">
               <span>{t.icon}</span>
@@ -417,9 +414,9 @@ export default function ShortenForm() {
               </svg>
             </div>
             <div>
-              <div className="upgrade-prompt-title">You've used your free guest link</div>
+              <div className="upgrade-prompt-title">All 5 guest links used</div>
               <div className="upgrade-prompt-desc">
-                Sign in with GitHub or Google to create unlimited links, track analytics, and manage everything from your dashboard.
+                Sign in with Google to create unlimited links, see click counts, and manage everything from your dashboard.
               </div>
               <Link href="/login" className="upgrade-prompt-btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -435,9 +432,9 @@ export default function ShortenForm() {
       {/* Trust row */}
       <div className="trust-row">
         {[
-          { icon: '🔒', text: 'No spam, just links' },
-          { icon: '⚡', text: 'Instant redirect' },
-          { icon: '🛡️', text: 'Password & expiry control' },
+          { icon: '🔒', text: 'Password protection' },
+          { icon: '⚡', text: 'Fast redirects' },
+          { icon: '🕐', text: 'Expiry & burn-after-read' },
         ].map((t) => (
           <span key={t.text} className="trust-item">
             <span>{t.icon}</span>

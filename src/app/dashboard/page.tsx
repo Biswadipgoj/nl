@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import Link from 'next/link'
+import { createClient } from '@/utils/supabase/client'
 
 type LinkItem = {
   id: string
@@ -36,8 +37,14 @@ export default function Dashboard() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'active' | 'expired'>('all')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null)
 
-  useEffect(() => { fetchLinks() }, [])
+  useEffect(() => {
+    fetchLinks()
+    // Load user profile
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setUser(data.user)).catch(() => {})
+  }, [])
 
   const fetchLinks = async () => {
     setLoading(true)
@@ -93,8 +100,8 @@ export default function Dashboard() {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
           <h2 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '-0.03em' }}>Sign in required</h2>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>You need to be logged in to view your dashboard.</p>
-          <Link href="/login" className="nav-btn">Sign in with GitHub or Google</Link>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>You need to be signed in to view your dashboard.</p>
+          <Link href="/login" className="nav-btn">Sign in with Google</Link>
         </div>
       </div>
     )
@@ -109,11 +116,38 @@ export default function Dashboard() {
             <div>
               <div className="dash-title-label">Dashboard</div>
               <h1 className="dash-title">Your Links</h1>
-              <p className="dash-subtitle">Monitor, manage, and analyze your shortened links</p>
+              <p className="dash-subtitle">Manage and track all your shortened links</p>
             </div>
-            <Link href="/" className="nav-btn" style={{ flexShrink: 0 }} id="btn-create-link">
-              <IPlus /> New Link
-            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+              {/* User profile */}
+              {user && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {user.user_metadata?.avatar_url ? (
+                    <img
+                      src={user.user_metadata.avatar_url}
+                      alt={user.user_metadata.full_name || 'User'}
+                      referrerPolicy="no-referrer"
+                      style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid var(--border-subtle)', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--brand-grad)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: '0.85rem' }}>
+                      {(user.user_metadata?.full_name || user.email || 'U').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                      {user.user_metadata?.full_name || user.user_metadata?.name || 'User'}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>
+                      {user.email}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <Link href="/" className="nav-btn" id="btn-create-link">
+                <IPlus /> New Link
+              </Link>
+            </div>
           </div>
 
           {/* Stats strip */}

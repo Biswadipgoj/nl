@@ -7,30 +7,21 @@ import type { User } from '@supabase/supabase-js'
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null)
+  const [showMenu, setShowMenu] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
-    // Initial user check
     supabase.auth
       .getUser()
-      .then((res: any) => {
-        setUser(res?.data?.user ?? null)
-      })
+      .then((res: any) => { setUser(res?.data?.user ?? null) })
       .catch(() => setUser(null))
 
-    // Subscribe to auth state changes
     const { data } = (supabase.auth as any).onAuthStateChange(
-      (_event: string, session: any) => {
-        setUser(session?.user ?? null)
-      }
+      (_event: string, session: any) => { setUser(session?.user ?? null) }
     )
 
     return () => {
-      try {
-        data?.subscription?.unsubscribe?.()
-      } catch {
-        // no-op for stub client
-      }
+      try { data?.subscription?.unsubscribe?.() } catch { }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -38,6 +29,10 @@ export default function Navbar() {
     await supabase.auth.signOut()
     window.location.href = '/'
   }
+
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined
+  const fullName = (user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User') as string
+  const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (
     <header className="navbar">
@@ -57,25 +52,63 @@ export default function Navbar() {
 
         <nav className="navbar-nav">
           {user ? (
-            <>
-              <Link href="/dashboard" className="nav-link">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7"/>
-                  <rect x="14" y="3" width="7" height="7"/>
-                  <rect x="3" y="14" width="7" height="7"/>
-                  <rect x="14" y="14" width="7" height="7"/>
-                </svg>
-                Dashboard
-              </Link>
+            <div style={{ position: 'relative' }}>
               <button
-                onClick={handleSignOut}
-                className="nav-btn"
-                style={{ background: 'rgba(255,255,255,0.05)', color: '#a1a1aa' }}
-                id="btn-signout"
+                onClick={() => setShowMenu(!showMenu)}
+                className="nav-user-btn"
+                id="btn-user-menu"
               >
-                Sign Out
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={fullName}
+                    className="nav-avatar"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="nav-avatar-fallback">{initials}</div>
+                )}
+                <span className="nav-user-name">{fullName.split(' ')[0]}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5, transition: 'transform 0.2s', transform: showMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
               </button>
-            </>
+
+              {showMenu && (
+                <>
+                  {/* Backdrop */}
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setShowMenu(false)} />
+                  {/* Dropdown */}
+                  <div className="nav-dropdown">
+                    <div className="nav-dropdown-header">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt={fullName} className="nav-dropdown-avatar" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="nav-dropdown-avatar-fallback">{initials}</div>
+                      )}
+                      <div>
+                        <div className="nav-dropdown-name">{fullName}</div>
+                        <div className="nav-dropdown-email">{user.email}</div>
+                      </div>
+                    </div>
+                    <div className="nav-dropdown-divider" />
+                    <Link href="/dashboard" className="nav-dropdown-item" onClick={() => setShowMenu(false)}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                      </svg>
+                      Dashboard
+                    </Link>
+                    <button onClick={handleSignOut} className="nav-dropdown-item nav-dropdown-signout" id="btn-signout">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                      </svg>
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           ) : (
             <Link href="/login" className="nav-btn" id="btn-signin">
               Sign In

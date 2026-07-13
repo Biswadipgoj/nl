@@ -6,40 +6,31 @@ import Link from 'next/link'
 
 export default function LoginPage() {
   const supabase = createClient()
-  const [loading, setLoading] = useState<'github' | 'google' | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleOAuth = async (provider: 'github' | 'google') => {
+  const handleGoogle = async () => {
     try {
-      setLoading(provider)
+      setLoading(true)
       setError('')
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
       if (error) {
         setError(error.message)
-        setLoading(null)
+        setLoading(false)
       }
-      // If no error, browser will redirect to OAuth provider — don't reset loading
-    } catch (err) {
+    } catch {
       setError('Something went wrong. Please try again.')
-      setLoading(null)
+      setLoading(false)
     }
   }
 
   return (
     <div className="login-page">
-      {/* Ambient orbs */}
-      <div className="fluid-mesh-bg" style={{ position: 'fixed' }}>
-        <div className="fluid-mesh-orb orb-1" />
-        <div className="fluid-mesh-orb orb-2" />
-        <div className="fluid-mesh-orb orb-3" />
-        <div className="fluid-mesh-overlay" />
-      </div>
-
       <div className="login-card">
         {/* Gradient top bar */}
         <div className="login-top-bar" />
@@ -57,7 +48,7 @@ export default function LoginPage() {
 
           <h1 className="login-title">Welcome to NanoLink</h1>
           <p className="login-subtitle">
-            Sign in to manage your links, track analytics, and unlock the full experience.
+            Sign in to manage your links, track clicks, and unlock unlimited shortening.
           </p>
 
           {error && (
@@ -70,31 +61,14 @@ export default function LoginPage() {
           )}
 
           <div className="login-btns">
-            {/* GitHub */}
+            {/* Google only */}
             <button
-              onClick={() => handleOAuth('github')}
-              disabled={loading !== null}
-              className="oauth-btn oauth-btn-github"
-              id="btn-login-github"
-            >
-              {loading === 'github' ? (
-                <div className="spinner" style={{ border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', width: '18px', height: '18px' }} />
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-                </svg>
-              )}
-              Continue with GitHub
-            </button>
-
-            {/* Google */}
-            <button
-              onClick={() => handleOAuth('google')}
-              disabled={loading !== null}
+              onClick={handleGoogle}
+              disabled={loading}
               className="oauth-btn oauth-btn-google"
               id="btn-login-google"
             >
-              {loading === 'google' ? (
+              {loading ? (
                 <div className="spinner" style={{ border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#333', width: '18px', height: '18px' }} />
               ) : (
                 <svg width="20" height="20" viewBox="0 0 24 24">
@@ -117,14 +91,14 @@ export default function LoginPage() {
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
             Continue as Guest
-            <span className="login-guest-limit">1 link max</span>
+            <span className="login-guest-limit">5 free links</span>
           </Link>
 
           <p className="login-terms">
             By signing in, you agree to our{' '}
-            <span style={{ color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>Terms of Service</span>
+            <span style={{ color: 'var(--text-secondary)', textDecoration: 'underline', cursor: 'pointer' }}>Terms of Service</span>
             {' '}and{' '}
-            <span style={{ color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>Privacy Policy</span>.
+            <span style={{ color: 'var(--text-secondary)', textDecoration: 'underline', cursor: 'pointer' }}>Privacy Policy</span>.
           </p>
         </div>
       </div>
