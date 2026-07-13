@@ -43,7 +43,7 @@ export default function Dashboard() {
     fetchLinks()
     // Load user profile
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => setUser(data.user)).catch(() => {})
+    supabase.auth.getUser().then(({ data }: { data: any }) => setUser(data.user)).catch(() => {})
   }, [])
 
   const fetchLinks = async () => {
