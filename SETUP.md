@@ -1,72 +1,88 @@
-# NanoLink — Quick Setup & Deployment
+# NanoLink — Complete Setup Guide
 
-The fastest way to get NanoLink running in production is to use the Vercel 1-Click Deploy. This handles all the heavy lifting, including provisioning your Supabase PostgreSQL database automatically.
+This guide covers everything you need to know to get NanoLink running locally on your machine with Supabase and Prisma.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FBiswadipgoj%2Fnl&project-name=nanolink&repository-name=nanolink&integration-ids=oac_jUqjzQpB410jB2J2Z99Bw7iC)
+## Prerequisites
 
-## Getting Started (1-Click Deployment)
-
-1. Click the **Deploy with Vercel** button above.
-2. Log in with your GitHub account when prompted.
-3. Vercel will ask to add the **Supabase integration**. Click **Add Integration** — this will automatically:
-   - Create a new Supabase project for you.
-   - Provision your PostgreSQL database with connection pooling.
-   - Automatically inject all the required database environment variables (`DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) into your Vercel project.
-4. Click **Deploy**. Vercel will build and launch your application.
+Before starting, ensure you have the correct version of Node.js installed. **Prisma requires Node.js v20.19+, v22.12+, or v24.0+.**
+If you see an error like `Prisma only supports Node.js versions...`, you must download and install the latest LTS release from [nodejs.org](https://nodejs.org/).
 
 ---
 
-## Step 2: Initialize Your Database Schema
+## Step 1: Create a Supabase Project
 
-Once your Vercel project is deployed, you need to push the Prisma schema to your newly created Supabase database.
+NanoLink uses Supabase for both the PostgreSQL database and Authentication.
 
-1. In your Vercel project dashboard, go to the **Storage** tab or **Settings > Environment Variables**.
-2. Copy the `DIRECT_URL` and `DATABASE_URL` values.
-3. Open your terminal locally, paste them into your local `.env` file, and run:
+1. Log in to [Supabase](https://supabase.com/) and create a new project.
+2. Wait a minute for the database to provision.
 
+---
+
+## Step 2: Configure Environment Variables
+
+You need to connect your local Next.js app to your new Supabase project.
+
+1. In your project root, copy `.env.example` to a new file named `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Go to your Supabase Dashboard.
+3. Click the **Connect** button in the top right corner of the project overview page.
+4. Go to the **URI** tab to find your connection strings.
+5. Update your `.env` file with these values:
+
+```env
+# 1. Connection Pooling (Port 6543, used for app queries)
+# Make sure "Use connection pooling" is CHECKED in Supabase.
+DATABASE_URL="postgresql://postgres.[YOUR-PROJECT-ID]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# 2. Direct Connection (Port 5432, used for Prisma migrations)
+# Make sure "Use connection pooling" is UNCHECKED in Supabase.
+DIRECT_URL="postgresql://postgres.[YOUR-PROJECT-ID]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres"
+
+# 3. API Keys (Project Settings -> API)
+NEXT_PUBLIC_SUPABASE_URL="https://[YOUR-PROJECT-ID].supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key-here"
+
+# 4. Local URL
+NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+```
+
+*(Note: Replace `[YOUR-PASSWORD]` with your actual database password!)*
+
+---
+
+## Step 3: Initialize the Database
+
+Now that your app can connect to Supabase, you need to create the required tables (like the `Link` table).
+
+Run the following command in your terminal:
 ```bash
-# Push the schema to your database
 npx prisma db push
 ```
 
-*(This creates the required `Link` table in your Supabase database).*
+*This will read your `prisma/schema.prisma` file and safely create all the necessary tables in your remote Supabase database.*
 
 ---
 
-## Step 3: Setup OAuth (Optional but Recommended)
+## Step 4: Setup OAuth (Optional but Recommended)
 
-By default, users can create 1 short link as a guest. To unlock the dashboard, you need to configure OAuth.
+By default, guests can only create 1 short link. To unlock the dashboard, you should configure GitHub or Google login.
 
-1. Open your [Supabase Dashboard](https://supabase.com/dashboard).
-2. Navigate to **Authentication > URL Configuration**.
-   - Set the **Site URL** to your Vercel production domain (e.g., `https://nanolink.vercel.app`).
-   - Add your local environment (`http://localhost:3000/auth/callback`) to the **Redirect URLs**.
-3. Navigate to **Authentication > Providers**.
-   - **GitHub**: Enable it, and provide the Client ID and Secret from your GitHub Developer Settings.
-   - **Google**: Enable it, and provide the Client ID and Secret from your Google Cloud Console.
-   *(Make sure to add the Supabase Callback URL provided in this tab to your GitHub/Google OAuth app settings).*
+1. In the Supabase Dashboard, go to **Authentication > URL Configuration**.
+2. Add `http://localhost:3000/auth/callback` to the **Redirect URLs**.
+3. Go to **Authentication > Providers**.
+4. Enable **GitHub** and/or **Google** and provide your OAuth Client ID and Secret from those platforms.
 
 ---
 
-## Local Development
+## Step 5: Run the App
 
-To run NanoLink on your own machine:
+Install dependencies and start the development server:
 
-1. Clone the repository and install dependencies:
-   ```bash
-   npm install
-   ```
-2. Link your Vercel environment variables (this safely pulls your Supabase URLs so you don't have to copy them manually):
-   ```bash
-   npx vercel env pull .env
-   ```
-3. Generate the Prisma client:
-   ```bash
-   npx prisma generate
-   ```
-4. Start the dev server:
-   ```bash
-   npm run dev
-   ```
+```bash
+npm install
+npm run dev
+```
 
-You're ready to go! NanoLink is fully production ready with Next.js App Router, Prisma v7, and Supabase Auth.
+Open [http://localhost:3000](http://localhost:3000) in your browser. NanoLink is now fully configured and running locally!

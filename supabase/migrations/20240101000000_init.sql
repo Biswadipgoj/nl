@@ -1,7 +1,7 @@
 -- Run this in the Supabase SQL Editor to instantly set up your database for NanoLink
 -- You don't need to run `npx prisma db push` if you run this script!
 
-CREATE TABLE "public"."Link" (
+CREATE TABLE IF NOT EXISTS "public"."Link" (
     "id" TEXT NOT NULL,
     "originalUrl" TEXT NOT NULL,
     "shortCode" TEXT NOT NULL,
@@ -19,13 +19,13 @@ CREATE TABLE "public"."Link" (
 );
 
 -- Create unique constraints
-CREATE UNIQUE INDEX "Link_shortCode_key" ON "public"."Link"("shortCode");
-CREATE UNIQUE INDEX "Link_customAlias_key" ON "public"."Link"("customAlias");
+CREATE UNIQUE INDEX IF NOT EXISTS "Link_shortCode_key" ON "public"."Link"("shortCode");
+CREATE UNIQUE INDEX IF NOT EXISTS "Link_customAlias_key" ON "public"."Link"("customAlias");
 
 -- Create performance indexes (for the dashboard and redirect lookups)
-CREATE INDEX "Link_shortCode_idx" ON "public"."Link"("shortCode");
-CREATE INDEX "Link_customAlias_idx" ON "public"."Link"("customAlias");
-CREATE INDEX "Link_createdAt_idx" ON "public"."Link"("createdAt");
+CREATE INDEX IF NOT EXISTS "Link_shortCode_idx" ON "public"."Link"("shortCode");
+CREATE INDEX IF NOT EXISTS "Link_customAlias_idx" ON "public"."Link"("customAlias");
+CREATE INDEX IF NOT EXISTS "Link_createdAt_idx" ON "public"."Link"("createdAt");
 
 -- Set up Row Level Security (RLS) policies (Optional but recommended)
 -- This allows your Next.js API route (using the connection string) to read/write, 
