@@ -4,7 +4,12 @@ import { PrismaPg } from '@prisma/adapter-pg'
 
 const prismaClientSingleton = () => {
   const connectionString = `${process.env.DATABASE_URL}`
-  const pool = new Pool({ connectionString })
+  const isProduction = process.env.NODE_ENV === 'production' || !connectionString.includes('localhost')
+  
+  const pool = new Pool({ 
+    connectionString,
+    ...(isProduction && { ssl: { rejectUnauthorized: false } })
+  })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })
 }
