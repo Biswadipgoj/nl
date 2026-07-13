@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { createClient } from '@/utils/supabase/server'
+import { rateLimit } from '@/lib/rate-limit'
 
 // ── URL normalizer ──────────────────────────────────────────────────────────
 // Accepts bare domains like "biswadip.in", "www.google.com", or full URLs.
@@ -24,7 +25,16 @@ const createLinkSchema = z.object({
   oneTimeUse: z.boolean().default(false),
 })
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Rate-limit: 10 new links per minute per IP
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anonymous'
+  if (!rateLimit(`post:${ip}`, 10, 60_000)) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please wait a moment and try again.' },
+      { status: 429 }
+    )
+  }
+
   try {
     const body = await req.json()
     const parsed = createLinkSchema.parse(body)

@@ -2,28 +2,66 @@ import { redirect, notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import PasswordPrompt from '@/components/PasswordPrompt'
 import Link from 'next/link'
-import { AlertCircle } from 'lucide-react'
 
 interface PageProps {
   params: Promise<{ shortCode: string }>
 }
 
+// Status page shown when a link cannot be accessed
+function LinkStatusPage({
+  title,
+  description,
+  icon,
+}: {
+  title: string
+  description: string
+  icon: React.ReactNode
+}) {
+  return (
+    <div className="notfound-page">
+      <div className="notfound-card">
+        <div className="notfound-top-bar" />
+        <div className="notfound-body">
+          <div className="notfound-icon">{icon}</div>
+          <div className="notfound-404" style={{ fontSize: '2rem' }}>Oops</div>
+          <h1 className="notfound-title">{title}</h1>
+          <p className="notfound-desc">{description}</p>
+          <div className="notfound-btns">
+            <Link href="/" className="btn-primary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+              </svg>
+              Create a New Link
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const warningIcon = (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="8" x2="12" y2="12"/>
+    <line x1="12" y1="16" x2="12.01" y2="16"/>
+  </svg>
+)
+
 export default async function RedirectPage({ params }: PageProps) {
   const { shortCode } = await params
 
   // Exclude built-in Next.js and app paths to avoid false database lookups
-  const excludedPaths = ['favicon.ico', '_next', 'api', 'dashboard']
-  if (excludedPaths.some(p => shortCode === p || shortCode.startsWith(p))) {
+  const excludedPrefixes = ['favicon', '_next', 'api', 'dashboard', 'login', 'auth', 'icon']
+  if (excludedPrefixes.some((p) => shortCode === p || shortCode.startsWith(p + '.'))) {
     return notFound()
   }
 
   const link = await prisma.link.findFirst({
     where: {
-      OR: [
-        { shortCode },
-        { customAlias: shortCode }
-      ]
-    }
+      OR: [{ shortCode }, { customAlias: shortCode }],
+    },
   })
 
   if (!link) {
@@ -33,49 +71,42 @@ export default async function RedirectPage({ params }: PageProps) {
   // Check if link is active
   if (!link.isActive) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center shadow-2xl">
-          <AlertCircle className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-white mb-2">Link Inactive</h2>
-          <p className="text-zinc-400 mb-6">This link has been disabled by its creator.</p>
-          <Link href="/" className="inline-block bg-white text-black px-6 py-2 rounded-xl font-medium hover:bg-zinc-200 transition-colors">
-            Go Home
-          </Link>
-        </div>
-      </div>
+      <LinkStatusPage
+        title="Link Disabled"
+        description="This link has been disabled by its creator."
+        icon={warningIcon}
+      />
     )
   }
 
   // Check expiration
   if (link.expiresAt && new Date() > link.expiresAt) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center shadow-2xl">
-          <AlertCircle className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-white mb-2">Link Expired</h2>
-          <p className="text-zinc-400 mb-6">This link has expired and is no longer accessible.</p>
-          <Link href="/" className="inline-block bg-white text-black px-6 py-2 rounded-xl font-medium hover:bg-zinc-200 transition-colors">
-            Go Home
-          </Link>
-        </div>
-      </div>
+      <LinkStatusPage
+        title="Link Expired"
+        description="This link has expired and is no longer accessible."
+        icon={warningIcon}
+      />
     )
   }
 
-  // Check password
+  // Check password — hand off to client component for interactive prompt
   if (link.password) {
     return <PasswordPrompt shortCode={shortCode} />
   }
 
-  // Update analytics before redirect
-  await prisma.link.update({
-    where: { id: link.id },
-    data: {
-      clicks: { increment: 1 },
-      lastVisited: new Date(),
-      isActive: link.oneTimeUse ? false : link.isActive, // Disable if one-time use
-    }
-  })
+  // Fire-and-forget analytics update — never block the redirect on a DB write
+  prisma.link
+    .update({
+      where: { id: link.id },
+      data: {
+        clicks: { increment: 1 },
+        lastVisited: new Date(),
+        // Disable one-time links after first access
+        isActive: link.oneTimeUse ? false : link.isActive,
+      },
+    })
+    .catch((err) => console.error('[analytics] failed to update link:', err))
 
   redirect(link.originalUrl)
 }

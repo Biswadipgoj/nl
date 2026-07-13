@@ -1,8 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
+
+const GUEST_LINK_KEY = 'nanolink_guest_created'
 
 function getBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, '')
@@ -23,10 +26,40 @@ export default function ShortenForm() {
   const [expiresAt, setExpiresAt] = useState('')
   const [oneTimeUse, setOneTimeUse] = useState(false)
   const [shake, setShake] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [guestLimitReached, setGuestLimitReached] = useState(false)
+
+  useEffect(() => {
+    // Check auth status and guest limit on mount
+    const checkAuth = async () => {
+      try {
+        const { createClient } = await import('@/utils/supabase/client')
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        setIsAuthenticated(!!user)
+        if (!user) {
+          // Check if guest already created a link
+          const guestUsed = localStorage.getItem(GUEST_LINK_KEY)
+          if (guestUsed) setGuestLimitReached(true)
+        }
+      } catch {
+        setIsAuthenticated(false)
+      }
+    }
+    checkAuth()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!url.trim()) return
+
+    // Block guest if limit reached
+    if (!isAuthenticated && guestLimitReached) {
+      setError('You have used your free guest link. Please sign in to create more.')
+      triggerShake()
+      return
+    }
+
     setLoading(true)
     setResult(null)
     setError('')
@@ -53,6 +86,11 @@ export default function ShortenForm() {
         setShowSettings(false)
         setShowQR(false)
         setError('')
+        // Mark guest as having used their one link
+        if (!isAuthenticated) {
+          localStorage.setItem(GUEST_LINK_KEY, '1')
+          setGuestLimitReached(true)
+        }
       } else {
         setError(data.error || 'Failed to shorten URL')
         triggerShake()
@@ -79,8 +117,47 @@ export default function ShortenForm() {
 
   const shortUrl = result ? `${getBaseUrl()}/${result.shortCode}` : ''
 
+  // Guest limit reached — show upgrade prompt instead of the form
+  if (guestLimitReached && !isAuthenticated && !result) {
+    return (
+      <div style={{ width: '100%' }}>
+        <div className="form-card" style={{ padding: '2.5rem 2rem', textAlign: 'center' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', color: '#fb923c' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Guest limit reached</h3>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '1.5rem', maxWidth: '320px', margin: '0 auto 1.5rem' }}>
+            You've used your free guest link. Sign in to create unlimited short links with full analytics and management.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <Link href="/login" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0.875rem', borderRadius: '14px', background: 'var(--text-main)', color: 'var(--bg-base)', fontWeight: 700, fontSize: '0.95rem' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+              </svg>
+              Sign in to continue — it&apos;s free
+            </Link>
+          </div>
+        </div>
+        <div className="trust-row">
+          {[
+            { icon: '🔒', text: 'No spam, just links' },
+            { icon: '⚡', text: 'Free forever plan' },
+            { icon: '🛡️', text: 'OAuth only — no passwords' },
+          ].map((t) => (
+            <span key={t.text} className="trust-item">
+              <span>{t.icon}</span>
+              {t.text}
+            </span>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <motion.div 
+    <motion.div
       style={{ width: '100%' }}
       animate={shake ? { x: [-10, 10, -10, 10, -5, 5, 0] } : {}}
       transition={{ duration: 0.4 }}
@@ -98,10 +175,11 @@ export default function ShortenForm() {
                 <input
                   type="text"
                   required
-                  placeholder="biswadip.in or https://example.com..."
+                  placeholder="Paste any URL to shorten..."
                   value={url}
                   onChange={(e) => { setUrl(e.target.value); setError('') }}
                   className="form-input"
+                  id="url-input"
                 />
               </div>
 
@@ -109,20 +187,21 @@ export default function ShortenForm() {
                 type="button"
                 onClick={() => setShowSettings(!showSettings)}
                 className={`form-options-btn${showSettings ? ' active' : ''}`}
+                id="btn-options"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 4.93 19.07 10 10 0 0 0 19.07 4.93z"/>
                 </svg>
                 Options
-                <motion.svg 
-                  animate={{ rotate: showSettings ? 180 : 0 }} 
+                <motion.svg
+                  animate={{ rotate: showSettings ? 180 : 0 }}
                   width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                 >
                   <polyline points="6 9 12 15 18 9"/>
                 </motion.svg>
               </button>
 
-              <button type="submit" disabled={loading || !url} className="form-submit-btn">
+              <button type="submit" disabled={loading || !url} className="form-submit-btn" id="btn-shorten">
                 {loading ? (
                   <div className="spinner" />
                 ) : (
@@ -139,9 +218,9 @@ export default function ShortenForm() {
             {/* Error message */}
             <AnimatePresence>
               {error && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }} 
-                  animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   style={{ marginTop: '14px', padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', fontSize: '0.85rem', color: '#f87171', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
@@ -149,6 +228,11 @@ export default function ShortenForm() {
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
                   {error}
+                  {!isAuthenticated && guestLimitReached && (
+                    <Link href="/login" style={{ marginLeft: 'auto', fontWeight: 700, color: '#fb923c', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                      Sign in →
+                    </Link>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -156,9 +240,9 @@ export default function ShortenForm() {
             {/* Advanced Settings */}
             <AnimatePresence>
               {showSettings && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }} 
-                  animate={{ height: 'auto', opacity: 1 }} 
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   style={{ overflow: 'hidden' }}
                 >
@@ -236,14 +320,14 @@ export default function ShortenForm() {
         {/* Result */}
         <AnimatePresence>
           {result && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="result-panel"
             >
               <div className="result-inner">
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="result-label">Your short link is ready</div>
+                  <div className="result-label">Your short link is ready ✓</div>
                   <a href={`/${result.shortCode}`} target="_blank" rel="noreferrer" className="result-url">
                     {shortUrl}
                   </a>
@@ -279,7 +363,7 @@ export default function ShortenForm() {
                     </svg>
                     QR Code
                   </button>
-                  <button onClick={handleCopy} className="icon-btn icon-btn-primary" type="button">
+                  <button onClick={handleCopy} className="icon-btn icon-btn-primary" type="button" id="btn-copy">
                     {copied ? (
                       <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -299,9 +383,9 @@ export default function ShortenForm() {
 
               <AnimatePresence>
                 {showQR && (
-                  <motion.div 
-                    initial={{ height: 0, opacity: 0 }} 
-                    animate={{ height: 'auto', opacity: 1 }} 
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     style={{ overflow: 'hidden' }}
                   >
@@ -309,7 +393,7 @@ export default function ShortenForm() {
                       <div className="qr-box" style={{ display: 'inline-block' }}>
                         <QRCodeSVG value={shortUrl} size={160} level="H" fgColor="#000" />
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '12px' }}>Scan to open this link</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px' }}>Scan to open this link</div>
                     </div>
                   </motion.div>
                 )}
@@ -319,12 +403,41 @@ export default function ShortenForm() {
         </AnimatePresence>
       </div>
 
+      {/* Guest upgrade prompt after creating their one free link */}
+      <AnimatePresence>
+        {guestLimitReached && !isAuthenticated && result && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="upgrade-prompt"
+          >
+            <div className="upgrade-prompt-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div>
+              <div className="upgrade-prompt-title">You've used your free guest link</div>
+              <div className="upgrade-prompt-desc">
+                Sign in with GitHub or Google to create unlimited links, track analytics, and manage everything from your dashboard.
+              </div>
+              <Link href="/login" className="upgrade-prompt-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+                Sign in free
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Trust row */}
       <div className="trust-row">
         {[
-          { icon: '🔒', text: 'No signup required' },
+          { icon: '🔒', text: 'No spam, just links' },
           { icon: '⚡', text: 'Instant redirect' },
-          { icon: '🛡️', text: 'Optional password protection' },
+          { icon: '🛡️', text: 'Password & expiry control' },
         ].map((t) => (
           <span key={t.text} className="trust-item">
             <span>{t.icon}</span>

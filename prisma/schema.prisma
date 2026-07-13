@@ -1,12 +1,13 @@
 // NanoLink — Prisma Schema
 // Provider: PostgreSQL (Supabase)
+// NOTE: Connection URLs are configured in prisma.config.ts (Prisma v7 convention)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 model Link {
@@ -25,6 +26,7 @@ model Link {
   updatedAt   DateTime  @updatedAt
 
   @@index([shortCode])
+  @@index([userId])
   @@index([customAlias])
   @@index([createdAt])
 }

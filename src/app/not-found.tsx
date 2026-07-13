@@ -1,26 +1,30 @@
-'use client'
-
 import Link from 'next/link'
 
 export default function NotFound() {
   return (
     <div className="notfound-page">
-      <div className="auth-blob-1" />
-      <div className="auth-blob-2" />
+      {/* Ambient mesh background - reuse fluid orbs */}
+      <div className="fluid-mesh-bg" style={{ position: 'fixed' }}>
+        <div className="fluid-mesh-orb orb-1" style={{ opacity: 0.15 }} />
+        <div className="fluid-mesh-orb orb-2" style={{ opacity: 0.1 }} />
+        <div className="fluid-mesh-overlay" />
+      </div>
 
       <div className="notfound-card">
         <div className="notfound-top-bar" />
         <div className="notfound-body">
           <div className="notfound-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              <line x1="11" y1="8" x2="11" y2="14"/><line x1="11" y1="16" x2="11.01" y2="16"/>
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="11" y1="8" x2="11" y2="14"/>
+              <line x1="11" y1="16" x2="11.01" y2="16"/>
             </svg>
           </div>
           <div className="notfound-404">404</div>
           <h1 className="notfound-title">Link Not Found</h1>
           <p className="notfound-desc">
-            The short link you're looking for doesn't exist, has expired, or has been removed.
+            The short link you&apos;re looking for doesn&apos;t exist, has expired, or has been removed.
           </p>
           <div className="notfound-btns">
             <Link href="/" className="btn-primary">
