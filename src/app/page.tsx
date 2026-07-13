@@ -86,14 +86,7 @@ export default function Home() {
 
   return (
     <section className="hero-section">
-      {/* Animated ambient orbs */}
-      <div className="fluid-mesh-bg">
-        <div className="fluid-mesh-orb orb-1" />
-        <div className="fluid-mesh-orb orb-2" />
-        <div className="fluid-mesh-orb orb-3" />
-        <div className="fluid-mesh-orb orb-4" />
-      </div>
-      <div className="fluid-mesh-overlay" />
+
 
       <div className="hero-content">
 
