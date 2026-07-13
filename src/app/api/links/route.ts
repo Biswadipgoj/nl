@@ -82,13 +82,19 @@ export async function POST(req: NextRequest) {
       hashedPassword = await bcrypt.hash(parsed.password, 10)
     }
 
-    // Get current user if any
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Get current user if any (don't let auth failure block link creation)
+    let userId: string | null = null
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      userId = user?.id || null
+    } catch (authError) {
+      console.error('Auth check failed (non-fatal):', authError)
+    }
 
     const newLink = await prisma.link.create({
       data: {
-        userId: user?.id || null,
+        userId,
         originalUrl: normalizedUrl,
         shortCode,
         customAlias: parsed.customAlias || null,
@@ -99,12 +105,14 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json(newLink, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || 'Validation error' }, { status: 400 })
     }
     console.error('Error creating link:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    // Return real error details for debugging (safe because it's server-side)
+    const message = error?.message || 'Unknown error'
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 })
   }
 }
 
