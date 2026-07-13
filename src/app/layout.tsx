@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import BrandFooter from "@/components/BrandFooter";
 
 // Resolves to the production URL on Vercel, localhost in dev
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -46,6 +47,7 @@ export default function RootLayout({
         <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           {children}
         </main>
+        <BrandFooter />
       </body>
     </html>
   );
