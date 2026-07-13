@@ -1,98 +1,72 @@
-# NanoLink — Supabase & Vercel Setup Guide
+# NanoLink — Quick Setup & Deployment
 
-Follow these steps in order to get NanoLink live in production.
+The fastest way to get NanoLink running in production is to use the Vercel 1-Click Deploy. This handles all the heavy lifting, including provisioning your Supabase PostgreSQL database automatically.
 
----
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FBiswadipgoj%2Fnl&project-name=nanolink&repository-name=nanolink&integration-ids=oac_jUqjzQpB410jB2J2Z99Bw7iC)
 
-## Step 1 — Create a Supabase Project
+## Getting Started (1-Click Deployment)
 
-1. Go to [supabase.com](https://supabase.com) and create a free account.
-2. Click **New project**, give it a name (e.g. `nanolink`), and choose a region close to your users.
-3. Wait ~2 minutes for the project to be provisioned.
-
----
-
-## Step 2 — Get Your Database Connection Strings
-
-1. In your Supabase project, go to **Settings → Database**.
-2. Scroll down to **Connection string**.
-3. Select the **Transaction** tab — this is your **`DATABASE_URL`** (port 6543, goes through PgBouncer).
-4. Select the **Session** tab — this is your **`DIRECT_URL`** (port 5432, direct connection for migrations).
-5. Replace `[YOUR-PASSWORD]` with your database password.
-
-> ⚠️ **Important:** The `DATABASE_URL` must include `?pgbouncer=true` at the end.
+1. Click the **Deploy with Vercel** button above.
+2. Log in with your GitHub account when prompted.
+3. Vercel will ask to add the **Supabase integration**. Click **Add Integration** — this will automatically:
+   - Create a new Supabase project for you.
+   - Provision your PostgreSQL database with connection pooling.
+   - Automatically inject all the required database environment variables (`DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) into your Vercel project.
+4. Click **Deploy**. Vercel will build and launch your application.
 
 ---
 
-## Step 3 — Enable OAuth Providers
+## Step 2: Initialize Your Database Schema
 
-1. In Supabase, go to **Authentication → Providers**.
-2. Enable **GitHub**:
-   - Go to [github.com/settings/developers](https://github.com/settings/developers) → New OAuth App.
-   - Homepage URL: `https://your-domain.com`
-   - Callback URL: `https://xxxx.supabase.co/auth/v1/callback`
-   - Copy the **Client ID** and **Client Secret** into Supabase.
-3. Enable **Google**:
-   - Go to [console.cloud.google.com](https://console.cloud.google.com) → Credentials → Create OAuth 2.0 Client ID.
-   - Authorized redirect URI: `https://xxxx.supabase.co/auth/v1/callback`
-   - Copy the **Client ID** and **Client Secret** into Supabase.
+Once your Vercel project is deployed, you need to push the Prisma schema to your newly created Supabase database.
 
----
-
-## Step 4 — Set the Redirect URL
-
-1. In Supabase, go to **Authentication → URL Configuration**.
-2. Set **Site URL** to your production domain (e.g. `https://nanolink.vercel.app`).
-3. Under **Redirect URLs**, add:
-   - `https://your-domain.com/auth/callback`
-   - `http://localhost:3000/auth/callback` (for local development)
-
----
-
-## Step 5 — Run the Database Migration
-
-Once your `DATABASE_URL` and `DIRECT_URL` are in your `.env` file, run:
+1. In your Vercel project dashboard, go to the **Storage** tab or **Settings > Environment Variables**.
+2. Copy the `DIRECT_URL` and `DATABASE_URL` values.
+3. Open your terminal locally, paste them into your local `.env` file, and run:
 
 ```bash
+# Push the schema to your database
 npx prisma db push
 ```
 
-This creates the `Link` table with all required columns including `userId`.
+*(This creates the required `Link` table in your Supabase database).*
 
 ---
 
-## Step 6 — Deploy to Vercel
+## Step 3: Setup OAuth (Optional but Recommended)
 
-1. Push your code to GitHub.
-2. Go to [vercel.com](https://vercel.com) → New Project → Import your repo.
-3. Before deploying, click **Environment Variables** and add all variables from `.env.example`:
+By default, users can create 1 short link as a guest. To unlock the dashboard, you need to configure OAuth.
 
-   | Variable | Value |
-   |---|---|
-   | `DATABASE_URL` | Supabase Transaction URL (port 6543) |
-   | `DIRECT_URL` | Supabase Session URL (port 5432) |
-   | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
-   | `NEXT_PUBLIC_SITE_URL` | Your Vercel deployment URL |
-
-4. Click **Deploy**.
+1. Open your [Supabase Dashboard](https://supabase.com/dashboard).
+2. Navigate to **Authentication > URL Configuration**.
+   - Set the **Site URL** to your Vercel production domain (e.g., `https://nanolink.vercel.app`).
+   - Add your local environment (`http://localhost:3000/auth/callback`) to the **Redirect URLs**.
+3. Navigate to **Authentication > Providers**.
+   - **GitHub**: Enable it, and provide the Client ID and Secret from your GitHub Developer Settings.
+   - **Google**: Enable it, and provide the Client ID and Secret from your Google Cloud Console.
+   *(Make sure to add the Supabase Callback URL provided in this tab to your GitHub/Google OAuth app settings).*
 
 ---
 
-## Step 7 — Verify
+## Local Development
 
-- Visit `https://your-domain.com` — the homepage should load.
-- Click **Sign In** and authenticate with GitHub or Google.
-- Create a short link and verify the redirect works.
-- Visit `/dashboard` and confirm your link appears.
+To run NanoLink on your own machine:
 
----
+1. Clone the repository and install dependencies:
+   ```bash
+   npm install
+   ```
+2. Link your Vercel environment variables (this safely pulls your Supabase URLs so you don't have to copy them manually):
+   ```bash
+   npx vercel env pull .env
+   ```
+3. Generate the Prisma client:
+   ```bash
+   npx prisma generate
+   ```
+4. Start the dev server:
+   ```bash
+   npm run dev
+   ```
 
-## Troubleshooting
-
-| Error | Fix |
-|---|---|
-| `@supabase/ssr: Your project's URL and API key are required` | Supabase env vars are missing from Vercel. Add them in Project → Settings → Environment Variables. |
-| `Can't reach database server` | Make sure `DATABASE_URL` uses port **6543** (PgBouncer) and includes `?pgbouncer=true`. |
-| OAuth redirects to `/auth/auth-code-error` | The redirect URL in Supabase doesn't match. Check Step 4. |
-| Links not appearing in dashboard | The `userId` column may not exist yet. Run `npx prisma db push`. |
+You're ready to go! NanoLink is fully production ready with Next.js App Router, Prisma v7, and Supabase Auth.
