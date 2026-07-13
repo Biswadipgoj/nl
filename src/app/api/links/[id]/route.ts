@@ -26,7 +26,7 @@ export async function PATCH(
     return NextResponse.json(safeLink, { status: 200 })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0]?.message || 'Validation error' }, { status: 400 })
+      return NextResponse.json({ error: (error as any).errors[0]?.message || 'Validation error' }, { status: 400 })
     }
     console.error('Error updating link:', error)
     return NextResponse.json(
